@@ -1,0 +1,60 @@
+### Python ###
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+
+### Operating System Files ###
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+desktop.ini
+
+
+### Environment & Secrets ###
+# Sensitive data - NEVER commit these
+.env
+.flaskenv
+*.log
+secret.txt
+
+
+### IDEs & Editors ###
+# VS Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# PyCharm / JetBrains
+.idea/
+
+
+### C / Compiled Binaries ###
+# Object files and libraries
+*.o
+*.obj
+*.so
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+app
