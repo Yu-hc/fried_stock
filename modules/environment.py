@@ -2,6 +2,7 @@ import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
 import pandas as pd
+from rewards import RewardFunction
 
 class StockTradingEnv(gym.Env):
        """
@@ -24,10 +25,10 @@ class StockTradingEnv(gym.Env):
               # We use float32 for compatibility with most RL libraries (Stable Baselines3, etc.)
               self.num_features = len(df.columns)
               self.observation_space = spaces.Box(
-              low=-np.inf, 
-              high=np.inf, 
-              shape=(self.window_size, self.num_features), 
-              dtype=np.float32
+                     low=-np.inf, 
+                     high=np.inf, 
+                     shape=(self.window_size, self.num_features), 
+                     dtype=np.float32
               )
 
               # State Variables
@@ -37,6 +38,7 @@ class StockTradingEnv(gym.Env):
               self.net_worth = self.initial_balance
               self.max_net_worth = self.initial_balance
               self.cost_basis = 0
+              self.reward_handler = RewardFunction(penalty_weight=2.5)
 
        def reset(self, seed=None, options=None):
               super().reset(seed=seed)
@@ -56,30 +58,34 @@ class StockTradingEnv(gym.Env):
               return obs.astype(np.float32)
 
        def step(self, action):
-              # 1. Execute Trade Logic
-              current_price = self.df.iloc[self.current_step]['close'] # Assumes 'close' column exists
-              self._take_action(action, current_price)
-
-              # 2. Advance Time
-              self.current_step += 1
+              prev_nav = self.net_worth
               
-              # 3. Update Portfolio Values
-              self.net_worth = self.balance + (self.shares_held * current_price)
-              if self.net_worth > self.max_net_worth:
-                     self.max_net_worth = self.net_worth
+              # 1. Perform Trade (returns number of shares moved for cost calculation)
+              shares_traded, price = self._take_action(action)
+              
+              # 2. Update State
+              self.current_step += 1
+              self.net_worth = self.balance + (self.shares_held * price)
+              self.max_net_worth = max(self.max_net_worth, self.net_worth)
 
-              # 4. Module C: Reward Calculation & Penalty Logic
-              reward = self._calculate_reward()
-
+              # 3. Call Module C
+              reward = self.reward_handler.calculate(
+                     current_nav=self.net_worth,
+                     previous_nav=prev_nav,
+                     max_nav=self.max_net_worth,
+                     action_type=action,
+                     current_price=price,
+                     shares_traded=shares_traded
+              )
               # 5. Check if Done
               done = self.current_step >= len(self.df) - 1
               truncated = self.net_worth <= self.initial_balance * 0.1  # Bankrupt if lost 90%
 
               # 6. Info Dictionary
               info = {
-              'net_worth': self.net_worth,
-              'shares_held': self.shares_held,
-              'step': self.current_step
+                     'net_worth': self.net_worth,
+                     'shares_held': self.shares_held,
+                     'step': self.current_step
               }
 
               return self._get_observation(), reward, done, truncated, info
