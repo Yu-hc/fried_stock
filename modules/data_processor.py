@@ -1,0 +1,93 @@
+import pandas as pd
+import numpy as np
+import pandas_ta as ta
+from sklearn.preprocessing import MinMaxScaler
+
+class FeatureFactory:
+       """
+       A module to process raw OHLCV data into a normalized feature set 
+       with heuristic signals for Reinforcement Learning agents.
+       """
+
+       def __init__(self, rsi_period=14, macd_fast=12, macd_slow=26, macd_signal=9, sma_period=20):
+              self.rsi_period = rsi_period
+              self.macd_fast = macd_fast
+              self.macd_slow = macd_slow
+              self.macd_signal = macd_signal
+              self.sma_period = sma_period
+              self.scaler = MinMaxScaler()
+
+       def add_technical_indicators(self, df):
+              """Adds RSI, MACD, and SMA to the dataframe."""
+              # Ensure column names are lowercase for pandas_ta compatibility if needed
+              df.ta.rsi(length=self.rsi_period, append=True)
+              df.ta.macd(fast=self.macd_fast, slow=self.macd_slow, signal=self.macd_signal, append=True)
+              df.ta.sma(length=self.sma_period, append=True)
+              return df
+
+       def generate_heuristic_signals(self, df):
+              """
+              Sub-module: Generates 'Buy' and 'Sell' signals based on trend-following logic:
+              - Buy: Price > SMA AND RSI < 70 (Not overbought)
+              - Sell: Price < SMA OR RSI > 70
+              """
+              # Close price column name might vary; assuming 'Close'
+              close_col = 'Close'
+              sma_col = f'SMA_{self.sma_period}'
+              rsi_col = f'RSI_{self.rsi_period}'
+
+              df['signal_buy'] = np.where((df[close_col] > df[sma_col]) & (df[rsi_col] < 70), 1, 0)
+              df['signal_sell'] = np.where((df[close_col] < df[sma_col]) | (df[rsi_col] > 80), 1, 0)
+              
+              return df
+
+       def normalize_data(self, df):
+              """Normalizes technical features to a 0-1 range for RL stability."""
+              # List of columns to normalize (indicators)
+              # We generally don't normalize the binary 'signal' columns
+              cols_to_scale = [
+                     f'RSI_{self.rsi_period}', 
+                     f'MACD_{self.macd_fast}_{self.macd_slow}_{self.macd_signal}', 
+                     f'MACDh_{self.macd_fast}_{self.macd_slow}_{self.macd_signal}',
+                     f'MACDs_{self.macd_fast}_{self.macd_slow}_{self.macd_signal}',
+                     f'SMA_{self.sma_period}'
+              ]
+              # Adding OHLCV to scaling for relative price movements
+              ohlcv_cols = ['Open', 'High', 'Low', 'Close', 'Volume']
+              target_cols = ohlcv_cols + cols_to_scale
+              
+              df[target_cols] = self.scaler.fit_transform(df[target_cols])
+              return df
+
+       def process(self, raw_df):
+              """
+              Main pipeline: Cleans, calculates, signals, and normalizes.
+              """
+              df = raw_df.copy()
+              
+              # 1. Setup Index
+              if 'Date' in df.columns:
+                     df['Date'] = pd.to_datetime(df['Date'])
+                     df.set_index('Date', inplace=True)
+              df.sort_index(inplace=True)
+
+              # 2. Add Indicators
+              df = self.add_technical_indicators(df)
+              
+              # 3. Add Heuristic Signals
+              df = self.generate_heuristic_signals(df)
+              
+              # 4. Clean up (Remove NaNs created by lagging indicators)
+              df.dropna(inplace=True)
+              
+              # 5. Normalize
+              processed_df = self.normalize_data(df)
+              
+              return processed_df
+
+# Example Usage:
+# if __name__ == "__main__":
+#     data = pd.read_csv('your_stock_data.csv')
+#     factory = FeatureFactory()
+#     clean_df = factory.process(data)
+#     print(clean_df.head())
