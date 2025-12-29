@@ -28,4 +28,5 @@ dependencies:
   - tensorflow
   - conda-forge::pandas-ta
   - matplotlib
+  - conda-forge::gymnasium
 prefix: /Users/qwer/anaconda3
