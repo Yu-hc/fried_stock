@@ -58,3 +58,14 @@ secret.txt
 *.exe
 *.out
 app
+
+# log files
+*.log
+logs/
+
+# report files
+*.rpt
+report/
+
+# models
+models/

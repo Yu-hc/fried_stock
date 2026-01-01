@@ -2,7 +2,7 @@ import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
 import pandas as pd
-from rewards import RewardFunction
+from modules.rewards import RewardFunction
 
 class StockTradingEnv(gym.Env):
        """
@@ -54,21 +54,31 @@ class StockTradingEnv(gym.Env):
 
        def _get_observation(self):
               # Returns the slice of data for the current window
-              obs = self.df.iloc[self.current_step - self.window_size: self.current_step].values
-              return obs.astype(np.float32)
+              # Drop 'raw_close' so the AI only sees normalized data
+              obs_df = self.df.iloc[self.current_step - self.window_size: self.current_step]
+              
+              # # If you want to exclude raw_close from the observation:
+              # if 'raw_close' in obs_df.columns:
+              #        obs_df = obs_df.drop(columns=['raw_close'])
+                     
+              return obs_df.values.astype(np.float32)
 
        def step(self, action):
               prev_nav = self.net_worth
               
-              # 1. Perform Trade (returns number of shares moved for cost calculation)
-              shares_traded, price = self._take_action(action)
+              # FIX: Get the current price before taking action
+              # Ensure 'raw_close' matches the actual column name in your df
+              current_price = self.df.iloc[self.current_step]['raw_close']
+              # print(f"Current Step: {self.current_step}, Current Price: {current_price}")
+              # FIX: Pass current_price to the function
+              shares_traded, price = self._take_action(action, current_price)
               
               # 2. Update State
               self.current_step += 1
               self.net_worth = self.balance + (self.shares_held * price)
               self.max_net_worth = max(self.max_net_worth, self.net_worth)
 
-              # 3. Call Module C
+              # 3. Call Module C (Reward Calculation)
               reward = self.reward_handler.calculate(
                      current_nav=self.net_worth,
                      previous_nav=prev_nav,
@@ -77,9 +87,10 @@ class StockTradingEnv(gym.Env):
                      current_price=price,
                      shares_traded=shares_traded
               )
+              
               # 5. Check if Done
               done = self.current_step >= len(self.df) - 1
-              truncated = self.net_worth <= self.initial_balance * 0.1  # Bankrupt if lost 90%
+              truncated = self.net_worth <= self.initial_balance * 0.1
 
               # 6. Info Dictionary
               info = {
@@ -91,10 +102,13 @@ class StockTradingEnv(gym.Env):
               return self._get_observation(), reward, done, truncated, info
 
        def _take_action(self, action, current_price):
+              shares_traded = 0  # Initialize to track volume
+              
               if action == 1: # Buy
                      # Simplified: Buy as many shares as possible with current balance
-                     total_possible = self.balance // current_price
+                     total_possible = int(self.balance // current_price)
                      if total_possible > 0:
+                            shares_traded = total_possible
                             self.shares_held += total_possible
                             self.balance -= total_possible * current_price
                             self.cost_basis = current_price
@@ -102,9 +116,13 @@ class StockTradingEnv(gym.Env):
               elif action == 2: # Sell
                      # Simplified: Sell all shares held
                      if self.shares_held > 0:
+                            shares_traded = self.shares_held
                             self.balance += self.shares_held * current_price
                             self.shares_held = 0
                             self.cost_basis = 0
+              
+              # FIX: Return the values expected by the step method
+              return shares_traded, current_price
 
        def _calculate_reward(self):
               """

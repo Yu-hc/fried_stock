@@ -32,7 +32,7 @@ class FeatureFactory:
               - Sell: Price < SMA OR RSI > 70
               """
               # Close price column name might vary; assuming 'Close'
-              close_col = 'Close'
+              close_col = 'close'
               sma_col = f'SMA_{self.sma_period}'
               rsi_col = f'RSI_{self.rsi_period}'
 
@@ -43,8 +43,15 @@ class FeatureFactory:
 
        def normalize_data(self, df):
               """Normalizes technical features to a 0-1 range for RL stability."""
+              
+              # ---------------------------------------------------------
+              # STEP 1: Save the RAW price before scaling
+              # We will use this column in the Environment for calculating 
+              # real Net Worth and share quantities.
+              # ---------------------------------------------------------
+              df['raw_close'] = df['close'] 
+
               # List of columns to normalize (indicators)
-              # We generally don't normalize the binary 'signal' columns
               cols_to_scale = [
                      f'RSI_{self.rsi_period}', 
                      f'MACD_{self.macd_fast}_{self.macd_slow}_{self.macd_signal}', 
@@ -52,11 +59,15 @@ class FeatureFactory:
                      f'MACDs_{self.macd_fast}_{self.macd_slow}_{self.macd_signal}',
                      f'SMA_{self.sma_period}'
               ]
+              
               # Adding OHLCV to scaling for relative price movements
-              ohlcv_cols = ['Open', 'High', 'Low', 'Close', 'Volume']
+              # Note: 'close' is still here, so the Agent sees the NORMALIZED version
+              ohlcv_cols = ['open', 'max', 'min', 'close', 'Trading_Volume']
               target_cols = ohlcv_cols + cols_to_scale
               
+              # STEP 2: Scale the target columns (including 'close')
               df[target_cols] = self.scaler.fit_transform(df[target_cols])
+              
               return df
 
        def process(self, raw_df):
@@ -66,9 +77,9 @@ class FeatureFactory:
               df = raw_df.copy()
               
               # 1. Setup Index
-              if 'Date' in df.columns:
-                     df['Date'] = pd.to_datetime(df['Date'])
-                     df.set_index('Date', inplace=True)
+              if 'date' in df.columns:
+                     df['date'] = pd.to_datetime(df['date'])
+                     df.set_index('date', inplace=True)
               df.sort_index(inplace=True)
 
               # 2. Add Indicators
