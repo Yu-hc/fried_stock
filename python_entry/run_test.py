@@ -42,15 +42,13 @@ while not done:
        action = agent.predict_action(obs)
        obs, reward, done, truncated, info = env.step(action)
        trade_log.append(info)
-print(trade_log[-10:])
 # Mock data for demonstration if you haven't run the model yet:
 # trade_log = [{'step': 0, 'balance': 10000}, {'step': 50, 'balance': 11500}]
 # price_history = processed_df['Close'].iloc[test_indices]
-
 # # Initialize and Run Evaluation
-# evaluator = Evaluator(initial_balance=10000)
-# report = evaluator.evaluate(trade_log, processed_df['raw_close'])
+evaluator = Evaluator(initial_balance=10000)
+report = evaluator.evaluate(trade_log, processed_df['raw_close'])
 
-# print("--- Performance Report ---")
-# for key, value in report.items():
-#        print(f"{key}: {value}")
+print("--- Performance Report ---")
+for key, value in report.items():
+       print(f"{key}: {value}")

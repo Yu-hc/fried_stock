@@ -9,38 +9,47 @@ class Evaluator:
        def evaluate(self, trade_log, price_history):
               """
               Evaluates the performance of a trading strategy.
-              
-              Args:
-              trade_log (list): List of dicts containing 'step', 'action', 'price', 'balance'.
-              price_history (pd.Series): The closing prices for the test period.
-              
-              Returns:
-              dict: A performance report containing returns, Sharpe ratio, and Max Drawdown.
               """
-              # 1. Convert trade log to DataFrame and map to price_history indices
+              # 1. Convert trade log to DataFrame
               df_trades = pd.DataFrame(trade_log)
+
+              # --- FIX START: Map integer 'step' to DatetimeIndex ---
+              # Ensure 'step' is an integer
+              df_trades['step'] = df_trades['step'].astype(int)
               
-              # We need a continuous balance curve. We'll forward-fill the balance 
-              # across the entire price_history length.
+              # Map the integer 'step' to the actual date in price_history
+              # We use the 'step' as a positional index to grab the date from price_history.index
+              # NOTE: This assumes step 0 corresponds to the first row of price_history
+              trade_dates = price_history.index[df_trades['step']]
+              
+              # Create a new column 'date' and set it as the index
+              df_trades['date'] = trade_dates
+              df_trades.set_index('date', inplace=True)
+              # --- FIX END ---
+
+              # 2. Prepare Results DataFrame
               results = pd.DataFrame(index=price_history.index)
               results['Price'] = price_history.values
               
-              # Map the balance from trade_log to the steps
-              balance_map = df_trades.set_index('step')['net_worth']
-              results['Strategy_Balance'] = balance_map
+              # Map the balance. Now both DataFrames share the same DatetimeIndex.
+              # We only take the last 'net_worth' recorded for a specific day/step if there are duplicates
+              # (Using grouping usually safer, but direct assignment works if steps are unique per day)
+              results['Strategy_Balance'] = df_trades['net_worth']
+              
+              # Forward fill: If no trade happened on a day, balance remains same as previous day
               results['Strategy_Balance'] = results['Strategy_Balance'].ffill().fillna(self.initial_balance)
               
-              # 2. Calculate Cumulative Returns
+              # 3. Calculate Cumulative Returns
               results['Strategy_Returns'] = results['Strategy_Balance'] / self.initial_balance
               
-              # Benchmark: Buy and Hold (Investing all initial balance at first price)
+              # Benchmark: Buy and Hold
               first_price = price_history.iloc[0]
               results['Benchmark_Returns'] = price_history / first_price
               
-              # 3. Calculate Metrics
+              # 4. Calculate Metrics
               metrics = self._calculate_metrics(results)
               
-              # 4. Generate Visualizations
+              # 5. Generate Visualizations
               self._plot_results(results)
               
               return metrics
