@@ -46,15 +46,26 @@ pip install -r requirements.txt
 
 > **Note:** If you are using **TA-Lib**, ensure you have the C++ binary installed on your system before running the pip install.
 
+### 4. Run the Main Script
+
+Use run_test.ipynb under notebooks folder or under python entry run
+
+```bash
+python3 run_test.py
+
+```
+
 ---
 
 ## 📈 Project Structure
 
 ```text
-├── Data/               # Historical CSV files / Database scripts
-├── .venv/               # Custom Trading Environment logic
+├── data/               # Historical CSV files / Database scripts
+├── .venv/              # Custom Trading Environment logic
 ├── models/             # Trained RL agents and weights
 ├── notebooks/          # Exploratory Data Analysis (EDA)
-├── utils/              # Indicators and preprocessing helpers
+├── python_entry/       # python entry point for execution
+├── modules/            # Indicators and preprocessing helpers
+├── report/             # Store training results
 └── requirements.txt    # Project dependencies
 ```
