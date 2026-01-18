@@ -89,4 +89,5 @@ class Evaluator:
               plt.ylabel('Cumulative Return (Multiple of Initial)')
               plt.legend()
               plt.grid(True, alpha=0.3)
+              plt.savefig('../report/performance_report.png')
               plt.show()
