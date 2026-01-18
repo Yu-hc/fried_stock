@@ -96,6 +96,63 @@ class FeatureFactory:
               
               return processed_df
 
+       def process_and_split(self, raw_df, train_ratio=0.8):
+              """
+              Processes data, splits into train/test (80/20 default), and normalizes separately
+              to prevent data leakage.
+              """
+              df = raw_df.copy()
+              
+              # 1. Setup Index
+              if 'date' in df.columns:
+                     df['date'] = pd.to_datetime(df['date'])
+                     df.set_index('date', inplace=True)
+              df.sort_index(inplace=True)
+
+              # 2. Add Indicators
+              df = self.add_technical_indicators(df)
+              
+              # 3. Add Heuristic Signals
+              df = self.generate_heuristic_signals(df)
+              
+              # 4. Clean up
+              df.dropna(inplace=True)
+              
+              # 5. Split
+              split_idx = int(len(df) * train_ratio)
+              train_df = df.iloc[:split_idx].copy()
+              test_df = df.iloc[split_idx:].copy()
+              
+              # 6. Normalize separately
+              train_df, test_df = self._normalize_split(train_df, test_df)
+              
+              return train_df, test_df
+
+       def _normalize_split(self, train_df, test_df):
+              """Normalizes train and test sets using the scaler fitted on train set."""
+              # Save raw close
+              train_df['raw_close'] = train_df['close']
+              test_df['raw_close'] = test_df['close']
+
+              cols_to_scale = [
+                     f'RSI_{self.rsi_period}', 
+                     f'MACD_{self.macd_fast}_{self.macd_slow}_{self.macd_signal}', 
+                     f'MACDh_{self.macd_fast}_{self.macd_slow}_{self.macd_signal}',
+                     f'MACDs_{self.macd_fast}_{self.macd_slow}_{self.macd_signal}',
+                     f'SMA_{self.sma_period}'
+              ]
+              
+              ohlcv_cols = ['open', 'max', 'min', 'close', 'Trading_Volume']
+              target_cols = ohlcv_cols + cols_to_scale
+              
+              # Fit on Train, Transform Train
+              train_df[target_cols] = self.scaler.fit_transform(train_df[target_cols])
+              
+              # Transform Test
+              test_df[target_cols] = self.scaler.transform(test_df[target_cols])
+              
+              return train_df, test_df
+
 # Example Usage:
 # if __name__ == "__main__":
 #     data = pd.read_csv('your_stock_data.csv')
