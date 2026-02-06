@@ -22,7 +22,7 @@ from modules.evaluator import Evaluator  # If not present, skip evaluation
 raw_df = pd.read_csv('../data/2330_2015-2025.csv')
 
 # Process data with Module A
-factory = FeatureFactory()
+factory = FeatureFactory(strategy='donchian')
 train_df, test_df = factory.process_and_split(raw_df)
 
 # Create environment with Module B for training
