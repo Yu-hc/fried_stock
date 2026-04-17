@@ -29,7 +29,6 @@ class FeatureFactory:
               df.ta.ema(length=self.macd_slow, append=True)  # EMA for trend direction
               df.ta.ppo(length=self.macd_slow, append=True)
               df.ta.donchian(lower_length=self.donchian_period, upper_length=self.donchian_period, append=True)
-              print(df.head(5))
               return df
 
        def generate_heuristic_signals(self, df):

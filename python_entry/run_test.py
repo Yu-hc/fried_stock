@@ -22,9 +22,13 @@ from modules.evaluator import Evaluator  # If not present, skip evaluation
 raw_df = pd.read_csv('../data/2330_2015-2025.csv')
 
 # Process data with Module A
-factory = FeatureFactory(strategy='donchian')
+factory = FeatureFactory()
 train_df, test_df = factory.process_and_split(raw_df)
 
+preserved_columns = ['Trading_Volume', 'Trading_money', 'open', 'min', 'max', 'close', 'spread', 'Trading_turnover', 'raw_close', 'signal_buy', 'signal_sell']
+train_df = train_df[preserved_columns]
+test_df = test_df[preserved_columns]
+print(train_df.head(5))
 # Create environment with Module B for training
 train_env = StockTradingEnv(df=train_df, initial_balance=10000.0, window_size=30)
 # Create a separate environment for testing
