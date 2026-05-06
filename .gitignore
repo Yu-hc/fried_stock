@@ -69,3 +69,7 @@ report/
 
 # models
 models/
+
+# data
+data/
+PDC_data/
